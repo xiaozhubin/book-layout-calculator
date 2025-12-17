@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图书版面字数计算 (独立版)</title>
+    <style>
+        /* --- 基础重置与变量 --- */
+        :root {
+            --bg-body: #f1f5f9;
+            --bg-card: #ffffff;
+            --bg-input: #ffffff;
+            --border-color: #e2e8f0;
+            --text-main: #334155;
+            --text-sub: #64748b;
+            --text-muted: #94a3b8;
+            --primary: #2563eb;
+            --primary-light: #eff6ff;
+            --warning: #f59e0b;       /* 警告色 */
+            --warning-light: #fffbeb; /* 警告背景 */
+            --header-bg: #0f172a;
+            --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+            --radius: 1rem;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: system-ui, -apple-system, sans-serif; background-color: var(--bg-body); color: var(--text-main); padding: 2rem 1rem; line-height: 1.5; display: flex; justify-content: center; }
+        
+        /* --- 布局工具类 --- */
+        .container { width: 100%; max-width: 1024px; background: var(--bg-card); border-radius: 1.5rem; box-shadow: var(--shadow); overflow: hidden; border: 1px solid var(--border-color); }
+        .header { background: var(--header-bg); color: white; padding: 1.5rem 2rem; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 1rem; }
+        .header h1 { font-size: 1.5rem; font-weight: 800; display: flex; align-items: center; gap: 0.75rem; }
+        .badge { background: rgba(37, 99, 235, 0.2); border: 1px solid rgba(59, 130, 246, 0.3); color: #bfdbfe; font-size: 0.75rem; padding: 0.25rem 0.75rem; border-radius: 999px; font-family: monospace; }
+        
+        .grid-layout { display: grid; grid-template-columns: 1fr; gap: 2rem; padding: 2rem; }
+        @media (min-width: 1024px) {
+            .grid-layout { grid-template-columns: 4fr 5fr 3fr; }
+        }
+
+        /* --- 表单元素 --- */
+        .section-title { display: flex; align-items: center; gap: 0.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; margin-bottom: 1rem; color: var(--text-main); font-weight: 700; }
+        .section-title svg { fill: var(--text-muted); width: 24px; height: 24px; }
+        
+        .input-group { margin-bottom: 1rem; }
+        .input-label { display: block; font-size: 0.75rem; font-weight: 700; color: var(--text-sub); text-transform: uppercase; margin-bottom: 0.4rem; letter-spacing: 0.05em; }
+        .input-wrapper { position: relative; display: flex; align-items: center; }
+        .input-icon { position: absolute; left: 0; top: 0; bottom: 0; width: 3rem; display: flex; align-items: center; justify-content: center; background: #f8fafc; border: 1px solid var(--border-color); border-right: none; border-radius: 0.5rem 0 0 0.5rem; color: var(--text-muted); }
+        
+        /* 输入框样式优化 */
+        .input-wrapper input, .input-wrapper select { width: 100%; padding: 0.75rem 3.5rem 0.75rem 3.5rem; border: 1px solid var(--border-color); border-radius: 0.5rem; font-size: 1rem; font-weight: 600; color: var(--text-main); outline: none; transition: all 0.2s; background: white; appearance: none; }
+        .input-wrapper input:focus, .input-wrapper select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); }
+        .input-unit { position: absolute; right: 1rem; font-size: 0.75rem; color: var(--text-muted); pointer-events: none; }
+        
+        /* 下拉菜单专属样式 */
+        .input-wrapper select { 
+            padding-right: 2.5rem; 
+            background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
+            background-position: right 0.5rem center;
+            background-repeat: no-repeat;
+            background-size: 1.5em 1.5em;
+        }
+
+        /* 隐藏数字输入框的箭头 */
+        input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type=number] { -moz-appearance: textfield; }
+
+        /* --- 开关按钮 --- */
+        .checkbox-group { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
+        .checkbox-btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.5rem; background: #f8fafc; border: 1px solid var(--border-color); border-radius: 0.5rem; cursor: pointer; font-size: 0.75rem; font-weight: 500; color: var(--text-sub); transition: all 0.2s; }
+        .checkbox-btn:hover { background: white; }
+        .checkbox-btn input { display: none; }
+        .checkbox-btn:has(input:checked) { background: var(--primary-light); border-color: #bfdbfe; color: var(--primary); }
+        .checkbox-btn svg { width: 18px; height: 18px; fill: var(--text-muted); }
+        .checkbox-btn:has(input:checked) svg { fill: var(--primary); }
+
+        /* --- 卡片式输入框 --- */
+        .grid-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem; margin-bottom: 1.5rem; }
+        @media (min-width: 640px) { .grid-cards { grid-template-columns: repeat(3, 1fr); } }
+
+        .card-input { position: relative; display: flex; flex-direction: column; align-items: center; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 0.75rem; text-align: center; transition: all 0.2s; background: white; }
+        .card-input:hover { box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        
+        .card-input.active { background: var(--primary-light); border-color: #bfdbfe; }
+        .card-input.active svg { fill: var(--primary); }
+        .card-input.active .card-input-field { background: white; color: var(--primary); border-color: #bfdbfe; }
+
+        /* 警告状态样式 */
+        .card-input.warning { background: var(--warning-light); border-color: #fcd34d; }
+        .card-input.warning svg { fill: var(--warning); }
+        .card-input.warning .card-input-field { background: white; color: #b45309; border-color: #fcd34d; }
+        .warning-text { display: none; font-size: 10px; color: #d97706; margin-top: 4px; font-weight: 700; line-height: 1; }
+        .card-input.warning .warning-text { display: block; animation: fadeIn 0.3s ease; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-2px); } to { opacity: 1; transform: translateY(0); } }
+
+        .card-icon { width: 28px; height: 28px; margin-bottom: 0.25rem; fill: #cbd5e1; transition: fill 0.2s; }
+        .card-label { font-size: 0.75rem; font-weight: 700; color: var(--text-main); margin-bottom: 0.25rem; }
+        .card-badge { font-size: 9px; padding: 1px 4px; border-radius: 4px; background: #f1f5f9; color: #64748b; margin-bottom: 0.5rem; }
+        
+        .card-input-wrapper { width: 100%; position: relative; display: flex; align-items: center; }
+        .card-input-field { width: 100%; border: 1px solid var(--border-color); border-radius: 0.375rem; padding: 0.25rem 1.5rem 0.25rem 0.5rem; text-align: center; font-size: 0.875rem; font-weight: 700; color: var(--text-main); outline: none; background: #f8fafc; transition: all 0.2s; }
+        .card-input-field:focus { border-color: var(--primary); background: white; box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1); }
+        .card-unit { font-size: 10px; color: var(--text-muted); position: absolute; right: 6px; pointer-events: none; }
+
+        /* --- 特殊页面输入行 --- */
+        .special-row { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; }
+        .percent-badge { width: 2.5rem; height: 2rem; display: flex; align-items: center; justify-content: center; border-radius: 0.5rem; font-size: 0.75rem; font-weight: 700; flex-shrink: 0; }
+        .bg-gray { background: #f1f5f9; color: #94a3b8; }
+        .bg-green { background: #f0fdf4; color: #16a34a; }
+        .bg-orange { background: #fff7ed; color: #ea580c; }
+        .bg-indigo { background: #eef2ff; color: #4f46e5; }
+        .bg-purple { background: #faf5ff; color: #9333ea; }
+        
+        .special-label { flex: 1; font-size: 0.875rem; font-weight: 500; color: var(--text-sub); }
+        .special-input { width: 4.5rem; padding: 0.25rem 0.5rem; border: 1px solid var(--border-color); border-radius: 0.25rem; text-align: right; font-weight: 600; color: var(--text-main); outline: none; background: #f8fafc; }
+        .special-input:focus { background: white; border-color: var(--primary); }
+
+        /* --- 结果区域 --- */
+        .result-box { background: #f8fafc; border: 1px solid var(--border-color); border-radius: 1rem; padding: 1.5rem; height: 100%; display: flex; flex-direction: column; position: relative; overflow: hidden; }
+        .result-bar { position: absolute; top: 0; left: 0; width: 100%; height: 4px; background: linear-gradient(90deg, #60a5fa, #a855f7, #2563eb); }
+        .result-header { text-align: center; margin-bottom: 1.5rem; }
+        .result-title { font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.5rem; }
+        .result-val { font-size: 2.5rem; font-weight: 900; color: var(--text-main); line-height: 1; margin-bottom: 0.25rem; }
+        .result-unit { font-size: 0.875rem; font-weight: 500; color: var(--text-sub); }
+        
+        .detail-list { background: white; border: 1px solid #e2e8f0; border-radius: 0.5rem; padding: 0.75rem; flex: 1; overflow-y: auto; max-height: 400px; font-size: 0.75rem; }
+        .detail-row { display: flex; justify-content: space-between; padding: 0.25rem 0; color: var(--text-sub); }
+        .detail-row.border-b { border-bottom: 1px solid #f1f5f9; margin-bottom: 0.25rem; padding-bottom: 0.25rem; }
+        .detail-row.total { font-weight: 700; color: var(--text-main); border-top: 1px dashed #cbd5e1; margin-top: 0.5rem; padding-top: 0.5rem; }
+        .detail-num { font-family: monospace; font-weight: 600; }
+
+        .reset-btn { margin-top: 1rem; display: flex; align-items: center; justify-content: center; gap: 0.25rem; font-size: 0.75rem; color: var(--text-muted); background: none; border: none; cursor: pointer; transition: color 0.2s; width: 100%; }
+        .reset-btn:hover { color: #ef4444; }
+        .reset-btn svg { width: 14px; height: 14px; fill: currentColor; }
+
+        /* Bugfix Wrapper */
+        .hidden { display: none; }
+        .mt-2 { margin-top: 0.5rem; }
+        
+        /* Footer */
+        .footer { background: #f8fafc; padding: 1.5rem; border-top: 1px solid var(--border-color); font-size: 0.75rem; color: var(--text-muted); }
+        .footer h4 { font-weight: 700; color: var(--text-sub); margin-bottom: 0.5rem; }
+        .footer ul { padding-left: 1rem; }
+        .footer li { margin-bottom: 0.25rem; }
+
+        /* SVG Icon styling */
+        svg { display: block; }
+    </style>
+</head>
+<body>
+
+    <main class="container">
+        
+        <!-- 头部 -->
+        <header class="header">
+            <h1>
+                <!-- Icon: Calculate -->
+                <svg viewBox="0 0 24 24" fill="currentColor" width="32" height="32"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zm-7-2h2v-2h-2v2zm-4 0h2v-2H8v2zm0-4h2v-2H8v2zm4 0h2v-2h-2v2zm4 0h2v-2h-2v2zm0 4h2v-2h-2v2z"/></svg>
+                <span>图书版面字数计算器</span>
+            </h1>
+            <div class="badge">印张智能版 v3.11 (智能校验)</div>
+        </header>
+
+        <form id="calcForm" oninput="calculate()" class="grid-layout">
+            
+            <!-- 第一列：版式与印张 -->
+            <div class="col-left">
+                <!-- 1. 版式参数 -->
+                <div class="section-title">
+                    <svg viewBox="0 0 24 24"><path d="M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z"/></svg>
+                    <span>第一步：版式参数</span>
+                </div>
+
+                <div class="input-group">
+                    <label class="input-label">每行字数</label>
+                    <div class="input-wrapper">
+                        <div class="input-icon">
+                            <!-- Icon: format_align_justify -->
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M3 21h18v-2H3v2zm0-4h18v-2H3v2zm0-4h18v-2H3v2zm0-4h18V7H3v2zm0-6v2h18V3H3z"/></svg>
+                        </div>
+                        <input type="number" id="charsPerLine" placeholder="0" value="28">
+                        <span class="input-unit">字/行</span>
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label class="input-label">每面行数 (正文)</label>
+                    <div class="input-wrapper">
+                        <div class="input-icon">
+                            <!-- Icon: format_list_numbered -->
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M2 17h2v.5H3v1h1v.5H2v1h3v-4H2v1zm1-9h1V4H2v1h1v3zm-1 3h1.8L2 13.1v.9h3v-1H3.2L5 10.9V10H2v1zm5-6v2h14V5H7zm0 14h14v-2H7v2zm0-6h14v-2H7v2z"/></svg>
+                        </div>
+                        <input type="number" id="linesPerPage" placeholder="0" value="30">
+                        <span class="input-unit">行/面</span>
+                    </div>
+                </div>
+
+                <div class="checkbox-group">
+                    <label class="checkbox-btn">
+                        <input type="checkbox" id="hasHeader" checked>
+                        <!-- Icon: vertical_align_top -->
+                        <svg viewBox="0 0 24 24"><path d="M8 11h3v10h2V11h3l-4-4-4 4zM4 3v2h16V3H4z"/></svg>
+                        <span>含书眉 (+1行)</span>
+                    </label>
+                    <label class="checkbox-btn">
+                        <input type="checkbox" id="hasPageNum" checked>
+                        <!-- Icon: numbers -->
+                        <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14h-2V9h-2V7h4v10z"/></svg>
+                        <span>含页码 (+1行)</span>
+                    </label>
+                </div>
+
+                <!-- 2. 印张与开本 -->
+                <div class="section-title" style="margin-top: 1.5rem;">
+                    <svg viewBox="0 0 24 24"><path d="M19 8h-1V3H6v5H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zM8 5h8v3H8V5zm8 12v2H8v-4h8v2zm2-2v-2H6v2H4v-4c0-.55.45-1 1-1h14c.55 0 1 .45 1 1v4h-2z"/></svg>
+                    <span>第二步：印张规模</span>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="input-group">
+                        <label class="input-label">图书开本</label>
+                        <div class="input-wrapper">
+                            <div class="input-icon">
+                                <!-- Icon: auto_stories (Book) -->
+                                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 5v14H5c-1.1 0-2-.9-2-2V5c0-1.1.9-2 2-2h7zm7 0h-5v14h5c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg>
+                            </div>
+                            <select id="bookFormat" onchange="toggleCustomFormat(); calculate()">
+                                <option value="16">16 开</option>
+                                <option value="32">32 开</option>
+                                <option value="8">8 开</option>
+                                <option value="24">24 开</option>
+                                <option value="20">20 开</option>
+                                <option value="64">64 开</option>
+                                <option value="custom">自定义</option>
+                            </select>
+                        </div>
+                        <!-- 自定义开本输入框 -->
+                        <div id="customFormatWrapper" class="hidden mt-2">
+                            <input type="number" id="customFormatInput" value="" oninput="calculate()" class="special-input" style="width: 100%; text-align: left; background: #eff6ff; color: #1e40af;" placeholder="输入开数 (如12)">
+                        </div>
+                    </div>
+
+                    <div class="input-group">
+                        <label class="input-label">正文印张</label>
+                        <div class="input-wrapper">
+                            <div class="input-icon">
+                                <!-- Icon: print -->
+                                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M19 8h-1V3H6v5H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zM8 5h8v3H8V5zm8 12v2H8v-4h8v2zm2-2v-2H6v2H4v-4c0-.55.45-1 1-1h14c.55 0 1 .45 1 1v4h-2z"/></svg>
+                            </div>
+                            <input type="number" id="printSheets" step="0.125" placeholder="0" value="10">
+                            <span class="input-unit">印张</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="background: #eff6ff; padding: 0.75rem; border-radius: 0.5rem; display: flex; justify-content: space-between; align-items: center; border: 1px solid #dbeafe;">
+                    <span style="font-size: 0.75rem; font-weight: 600; color: #1e40af;">折合正文总面数:</span>
+                    <span style="font-family: monospace; font-size: 1.125rem; font-weight: 800; color: #1d4ed8;"><span id="calcTotalPages">0</span> <span style="font-size: 0.75rem; font-weight: 400; opacity: 0.7;">面</span></span>
+                </div>
+            </div>
+
+            <!-- 第二列：装帧与内容 -->
+            <div class="col-mid">
+                <!-- 3. 装帧附件 -->
+                <div class="section-title">
+                    <svg viewBox="0 0 24 24"><path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"/></svg>
+                    <span>第三步：装帧附件 <span style="font-size: 0.75rem; font-weight: 400; opacity: 0.6; margin-left: 0.5rem;">(填写面数)</span></span>
+                </div>
+                
+                <!-- 卡片式输入：恢复旧UI风格但支持输入数字 -->
+                <div class="grid-cards">
+                    <!-- 封面 -->
+                    <div class="card-input" id="card-addonCover">
+                        <!-- Icon: menu_book -->
+                        <svg class="card-icon" viewBox="0 0 24 24"><path d="M21 5c-1.11-.35-2.33-.5-3.5-.5-1.95 0-4.05.4-5.5 1.5-1.45-1.1-3.55-1.5-5.5-1.5S2.45 4.9 1 6v14.65c0 .25.25.5.5.5.1 0 .15-.05.25-.05C3.1 20.45 5.05 20 6.5 20c1.95 0 4.05.4 5.5 1.5 1.35-.85 3.8-1.5 5.5-1.5 1.65 0 3.35.3 4.75 1.05.1.05.15.05.25.05.25 0 .5-.25.5-.5V6c-.6-.45-1.25-.75-2-1zm0 13.5c-1.1-.35-2.3-.5-3.5-.5-1.7 0-4.15.65-5.5 1.5V8c1.35-.85 3.8-1.5 5.5-1.5 1.2 0 2.4.15 3.5.5v11.5z"/></svg>
+                        <div class="card-label">封面</div>
+                        <div class="card-badge">50%</div>
+                        <div class="card-input-wrapper">
+                            <!-- 默认值改为 2 -->
+                            <input type="number" id="addonCover" class="card-input-field" value="2" placeholder="0" oninput="updateCardState(this)">
+                            <span class="card-unit">面</span>
+                        </div>
+                        <div class="warning-text">常规≤4</div>
+                    </div>
+
+                    <!-- 书脊 -->
+                    <div class="card-input" id="card-addonSpine">
+                        <!-- Icon: vertical_split -->
+                        <svg class="card-icon" viewBox="0 0 24 24"><path d="M3 15h8v-2H3v2zm0 4h8v-2H3v2zm0-8h8V9H3v2zm0-6v2h8V5H3zm10 0h8v14h-8V5z"/></svg>
+                        <div class="card-label">书脊</div>
+                        <div class="card-badge" style="background:#eef2ff; color:#4f46e5;">100%</div>
+                        <div class="card-input-wrapper">
+                            <!-- 默认值改为 1 -->
+                            <input type="number" id="addonSpine" class="card-input-field" value="1" placeholder="0" oninput="updateCardState(this)">
+                            <span class="card-unit">面</span>
+                        </div>
+                        <div class="warning-text">常规=1</div>
+                    </div>
+
+                    <!-- 勒口 -->
+                    <div class="card-input" id="card-addonFlaps">
+                        <!-- Icon: view_sidebar -->
+                        <svg class="card-icon" viewBox="0 0 24 24"><path d="M16 20H2V4h14v16zm2-12h4V4h-4v4zm0 12h4v-4h-4v4zm0-6h4v-4h-4v4z"/></svg>
+                        <div class="card-label">勒口</div>
+                        <div class="card-badge" style="background:#eef2ff; color:#4f46e5;">100%</div>
+                        <div class="card-input-wrapper">
+                            <!-- 默认值改为 2 -->
+                            <input type="number" id="addonFlaps" class="card-input-field" value="2" placeholder="0" oninput="updateCardState(this)">
+                            <span class="card-unit">面</span>
+                        </div>
+                        <div class="warning-text">常规≤2</div>
+                    </div>
+
+                    <!-- 护封 -->
+                    <div class="card-input" id="card-addonDustJacket">
+                        <!-- Icon: layers -->
+                        <svg class="card-icon" viewBox="0 0 24 24"><path d="M11.99 18.54l-7.37-5.73L3 14.07l9 7 9-7-1.63-1.27-7.38 5.74zM12 16l7.36-5.73L21 9l-9-7-9 7 1.63 1.27L12 16z"/></svg>
+                        <div class="card-label">护封</div>
+                        <div class="card-badge">50%</div>
+                        <div class="card-input-wrapper">
+                            <input type="number" id="addonDustJacket" class="card-input-field" placeholder="0" oninput="updateCardState(this)">
+                            <span class="card-unit">面</span>
+                        </div>
+                    </div>
+
+                    <!-- 封套 -->
+                    <div class="card-input" id="card-addonSlipcase">
+                        <!-- Icon: folder -->
+                        <svg class="card-icon" viewBox="0 0 24 24"><path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z"/></svg>
+                        <div class="card-label">封套</div>
+                        <div class="card-badge">50%</div>
+                        <div class="card-input-wrapper">
+                            <input type="number" id="addonSlipcase" class="card-input-field" placeholder="0" oninput="updateCardState(this)">
+                            <span class="card-unit">面</span>
+                        </div>
+                    </div>
+
+                    <!-- 腰封 -->
+                    <div class="card-input" id="card-addonObi">
+                        <!-- Icon: label -->
+                        <svg class="card-icon" viewBox="0 0 24 24"><path d="M17.63 5.84C17.27 5.33 16.67 5 16 5L5 5.01C3.9 5.01 3 5.9 3 7v10c0 1.1.9 1.99 2 1.99L16 19c.67 0 1.27-.33 1.63-.84L22 12l-4.37-6.16z"/></svg>
+                        <div class="card-label">腰封</div>
+                        <div class="card-badge">50%</div>
+                        <div class="card-input-wrapper">
+                            <input type="number" id="addonObi" class="card-input-field" placeholder="0" oninput="updateCardState(this)">
+                            <span class="card-unit">面</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4. 正文微调 -->
+                <div class="section-title" style="margin-top: 1.5rem;">
+                    <svg viewBox="0 0 24 24"><path d="M19 1H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V3c0-1.1-.9-2-2-2zM7 17v-2h12v2H7zm10-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+                    <span>第四步：正文微调 <span style="font-size: 0.75rem; font-weight: 400; opacity: 0.6; margin-left: 0.5rem;">(填写对应页数)</span></span>
+                </div>
+
+                <div>
+                    <div class="special-row">
+                        <div class="percent-badge bg-gray">0%</div>
+                        <div class="special-label">空白页 (不计字数)</div>
+                        <input type="number" id="pagesBlank" class="special-input" placeholder="0">
+                    </div>
+
+                    <div class="special-row">
+                        <div class="percent-badge bg-green">20%</div>
+                        <div class="special-label">纯图无文页 (4.2.2)</div>
+                        <input type="number" id="pagesImage" class="special-input" placeholder="0">
+                    </div>
+
+                    <div class="special-row">
+                        <div class="percent-badge bg-orange">50%</div>
+                        <div class="special-label">有文插图/图表页 (4.2.1)</div>
+                        <input type="number" id="pagesHalf" class="special-input" placeholder="0">
+                    </div>
+
+                    <div class="special-row">
+                        <div class="percent-badge bg-indigo">130%</div>
+                        <div class="special-label">外文/少数民族文字 (4.1.11)</div>
+                        <input type="number" id="pagesForeign" class="special-input" placeholder="0">
+                    </div>
+
+                    <div class="special-row">
+                        <div class="percent-badge bg-purple">115%</div>
+                        <div class="special-label">疏排脚注页 (<10行) (4.1.9)</div>
+                        <input type="number" id="pagesFootnote" class="special-input" placeholder="0">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 第三列：结果 -->
+            <div class="col-right">
+                <div class="result-box">
+                    <div class="result-bar"></div>
+                    <div class="result-header">
+                        <div class="result-title">版面总字数</div>
+                        <div class="result-val" id="totalCount">0</div>
+                        <div class="result-unit">千字</div>
+                    </div>
+
+                    <div class="detail-list" id="calcDetails">
+                        <!-- JS 生成详情 -->
+                    </div>
+
+                    <button type="button" onclick="resetForm()" class="reset-btn">
+                        <!-- Icon: restart_alt -->
+                        <svg viewBox="0 0 24 24"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>
+                        重置数据
+                    </button>
+                </div>
+            </div>
+
+        </form>
+
+        <footer class="footer">
+            <h4>计算规则说明 (CY/T 266—2023)：</h4>
+            <ul>
+                <li>总页数 = 印张 × 开本。此页数作为标准正文页基数。</li>
+                <li>扉页、空白页、插图页等从正文页基数中扣除（或直接抵扣），并按对应比例重新计算。</li>
+                <li>封面、护封、封套、腰封等装帧附件按面数独立计算（50%权重）。</li>
+                <li>书脊、勒口等按100%权重计算。</li>
+                <li>版面行数含书眉、中缝、页码等非正文行。</li>
+            </ul>
+        </footer>
+
+    </main>
+
+    <!-- 逻辑脚本 (保留) -->
+    <script>
+        function formatNumber(num) {
+            return Math.round(num).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        }
+
+        // 切换自定义开本显示
+        function toggleCustomFormat() {
+            const select = document.getElementById('bookFormat');
+            const wrapper = document.getElementById('customFormatWrapper');
+            const customInput = document.getElementById('customFormatInput');
+            
+            if (select.value === 'custom') {
+                wrapper.classList.remove('hidden');
+                setTimeout(() => customInput.focus(), 100);
+            } else {
+                wrapper.classList.add('hidden');
+            }
+        }
+
+        // 统一处理卡片激活和校验状态
+        function updateCardState(input) {
+            const card = input.closest('.card-input');
+            const val = parseFloat(input.value) || 0;
+            const id = input.id;
+
+            // 1. 激活状态 (值 > 0)
+            if (val > 0) {
+                card.classList.add('active');
+            } else {
+                card.classList.remove('active');
+            }
+
+            // 2. 警告校验逻辑
+            let isWarning = false;
+            if (id === 'addonCover' && val > 4) isWarning = true;
+            if (id === 'addonSpine' && val > 1) isWarning = true;
+            if (id === 'addonFlaps' && val > 2) isWarning = true;
+
+            if (isWarning) {
+                card.classList.add('warning');
+            } else {
+                card.classList.remove('warning');
+            }
+
+            calculate();
+        }
+
+        function calculate() {
+            // --- 1. 计算单面基数 ---
+            const charsLine = parseFloat(document.getElementById('charsPerLine').value) || 0;
+            let linesPage = parseFloat(document.getElementById('linesPerPage').value) || 0;
+            
+            if (document.getElementById('hasHeader').checked) linesPage += 1;
+            if (document.getElementById('hasPageNum').checked) linesPage += 1;
+
+            const baseCharsPerPage = charsLine * linesPage;
+
+            // --- 2. 计算物理总页数 ---
+            let formatVal = document.getElementById('bookFormat').value;
+            let format = 16;
+            
+            if (formatVal === 'custom') {
+                format = parseFloat(document.getElementById('customFormatInput').value) || 0;
+            } else {
+                format = parseFloat(formatVal) || 16;
+            }
+
+            const sheets = parseFloat(document.getElementById('printSheets').value) || 0;
+            const totalPhysicalPages = Math.round(sheets * format);
+
+            // --- 3. 获取特殊页面 ---
+            const pBlank = parseFloat(document.getElementById('pagesBlank').value) || 0;
+            const pImage = parseFloat(document.getElementById('pagesImage').value) || 0;
+            const pHalf = parseFloat(document.getElementById('pagesHalf').value) || 0;
+            const pForeign = parseFloat(document.getElementById('pagesForeign').value) || 0;
+            const pFootnote = parseFloat(document.getElementById('pagesFootnote').value) || 0;
+
+            // --- 4. 计算标准正文页 ---
+            let pStandard = totalPhysicalPages - pBlank - pImage - pHalf - pForeign - pFootnote;
+            if (pStandard < 0) pStandard = 0; 
+
+            // --- 5. 计算逻辑 ---
+            let totalWords = 0;
+            let detailHTML = '';
+
+            const addRow = (label, valueStr, count) => {
+                detailHTML += `
+                <div class="detail-row">
+                    <span>${label} ${valueStr ? '('+valueStr+')' : ''}</span>
+                    <span class="detail-num">${formatNumber(count)}</span>
+                </div>`;
+            };
+            
+            detailHTML += `<div class="detail-row border-b"><span>单面基数</span><span class="detail-num">${charsLine}×${linesPage}=${baseCharsPerPage}</span></div>`;
+
+            // 正文部分
+            const wStandard = pStandard * baseCharsPerPage * 1.0;
+            totalWords += wStandard;
+            if (pStandard > 0) addRow('标准正文', `${pStandard}面`, wStandard);
+
+            // 扉页默认扣减
+            const deduction = baseCharsPerPage * 0.5;
+            totalWords -= deduction;
+            addRow('扉页调整', '默认 -0.5面', -deduction);
+
+            const wImage = pImage * baseCharsPerPage * 0.2;
+            totalWords += wImage;
+            if (pImage > 0) addRow('纯图页', `${pImage}面 × 20%`, wImage);
+
+            const wHalf = pHalf * baseCharsPerPage * 0.5;
+            totalWords += wHalf;
+            if (pHalf > 0) addRow('图文混排', `${pHalf}面 × 50%`, wHalf);
+
+            const wForeign = pForeign * baseCharsPerPage * 1.3;
+            totalWords += wForeign;
+            if (pForeign > 0) addRow('外文', `${pForeign}面 × 130%`, wForeign);
+            
+            const wFootnote = pFootnote * baseCharsPerPage * 1.15;
+            totalWords += wFootnote;
+            if (pFootnote > 0) addRow('疏排脚注', `${pFootnote}面 × 115%`, wFootnote);
+
+            if(pBlank > 0) {
+                 addRow('空白页', `${pBlank}面`, 0);
+            }
+
+            // --- 装帧附件计算 (新增) ---
+            
+            // 50% 权重组
+            const addonCover = parseFloat(document.getElementById('addonCover').value) || 0;
+            if (addonCover > 0) {
+                const c = addonCover * baseCharsPerPage * 0.5;
+                totalWords += c;
+                addRow('封面', `${addonCover}面 × 50%`, c);
+            }
+
+            const addonDustJacket = parseFloat(document.getElementById('addonDustJacket').value) || 0;
+            if (addonDustJacket > 0) {
+                const c = addonDustJacket * baseCharsPerPage * 0.5;
+                totalWords += c;
+                addRow('护封', `${addonDustJacket}面 × 50%`, c);
+            }
+
+            const addonSlipcase = parseFloat(document.getElementById('addonSlipcase').value) || 0;
+            if (addonSlipcase > 0) {
+                const c = addonSlipcase * baseCharsPerPage * 0.5;
+                totalWords += c;
+                addRow('封套', `${addonSlipcase}面 × 50%`, c);
+            }
+
+            const addonObi = parseFloat(document.getElementById('addonObi').value) || 0;
+            if (addonObi > 0) {
+                const c = addonObi * baseCharsPerPage * 0.5;
+                totalWords += c;
+                addRow('腰封', `${addonObi}面 × 50%`, c);
+            }
+
+            // 100% 权重组
+            const addonSpine = parseFloat(document.getElementById('addonSpine').value) || 0;
+            if (addonSpine > 0) {
+                const c = addonSpine * baseCharsPerPage * 1.0;
+                totalWords += c;
+                addRow('书脊', `${addonSpine}面`, c);
+            }
+
+            const addonFlaps = parseFloat(document.getElementById('addonFlaps').value) || 0;
+            if (addonFlaps > 0) {
+                const c = addonFlaps * baseCharsPerPage * 1.0;
+                totalWords += c;
+                addRow('勒口', `${addonFlaps}面`, c);
+            }
+
+            // 合计
+            detailHTML += `
+            <div class="detail-row total">
+                <span>总计 (字)</span>
+                <span class="detail-num">${formatNumber(totalWords)}</span>
+            </div>`;
+
+            // 更新 UI
+            const totalThousand = (totalWords / 1000).toFixed(2);
+            document.getElementById('totalCount').innerText = formatNumber(totalThousand);
+            document.getElementById('calcDetails').innerHTML = detailHTML;
+            document.getElementById('calcTotalPages').innerText = totalPhysicalPages;
+        }
+
+        // 初始化所有卡片状态
+        function initCardStates() {
+            const inputs = document.querySelectorAll('.card-input-field');
+            inputs.forEach(input => updateCardState(input));
+        }
+
+        function resetForm() {
+            document.getElementById('calcForm').reset(); // 这会恢复到 HTML 中的 value 默认值
+            document.getElementById('customFormatWrapper').classList.add('hidden');
+            // 重置后重新计算状态（以点亮有默认值的卡片）
+            setTimeout(() => {
+                initCardStates();
+                calculate();
+            }, 0); 
+        }
+
+        // 初始化
+        initCardStates();
+        calculate();
+    </script>
+</body>
+</html>
