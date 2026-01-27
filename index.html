@@ -178,7 +178,7 @@
                 <svg viewBox="0 0 24 24" fill="currentColor" width="32" height="32"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zm-7-2h2v-2h-2v2zm-4 0h2v-2H8v2zm0-4h2v-2H8v2zm4 0h2v-2h-2v2zm4 0h2v-2h-2v2zm0 4h2v-2h-2v2z"/></svg>
                 <span>图书版面字数计算器</span>
             </h1>
-            <div class="badge">印张智能版 v3.17 (经典下拉)</div>
+            <div class="badge">印张智能版 v3.18 (双向计算)</div>
         </header>
 
         <form id="calcForm" oninput="calculate()" class="grid-layout">
@@ -244,7 +244,7 @@
                                 <!-- Icon: auto_stories (Book) -->
                                 <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 5v14H5c-1.1 0-2-.9-2-2V5c0-1.1.9-2 2-2h7zm7 0h-5v14h5c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg>
                             </div>
-                            <select id="bookFormat" onchange="toggleCustomFormat(); calculate()">
+                            <select id="bookFormat" onchange="toggleCustomFormat(); updateFromSheets()">
                                 <option value="16">16 开</option>
                                 <option value="32">32 开</option>
                                 <option value="8">8 开</option>
@@ -261,7 +261,7 @@
                                 <div class="input-icon">
                                     <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M12 5v14H5c-1.1 0-2-.9-2-2V5c0-1.1.9-2 2-2h7zm7 0h-5v14h5c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg>
                                 </div>
-                                <input type="number" id="customFormatInput" value="" oninput="calculate()" style="padding-left: 3.5rem; padding-right: 3.5rem;" placeholder="输入开数 (如 12)">
+                                <input type="number" id="customFormatInput" value="" oninput="updateFromSheets()" style="padding-left: 3.5rem; padding-right: 3.5rem;" placeholder="输入开数 (如 12)">
                                 <span class="input-unit">开</span>
                             </div>
                         </div>
@@ -274,15 +274,23 @@
                                 <!-- Icon: print -->
                                 <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M19 8h-1V3H6v5H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zM8 5h8v3H8V5zm8 12v2H8v-4h8v2zm2-2v-2H6v2H4v-4c0-.55.45-1 1-1h14c.55 0 1 .45 1 1v4h-2z"/></svg>
                             </div>
-                            <input type="number" id="printSheets" step="0.125" placeholder="0" value="10">
+                            <input type="number" id="printSheets" step="0.125" placeholder="0" value="10" oninput="updateFromSheets()">
                             <span class="input-unit">印张</span>
                         </div>
                     </div>
                 </div>
 
-                <div style="background: #eff6ff; padding: 0.75rem; border-radius: 0.5rem; display: flex; justify-content: space-between; align-items: center; border: 1px solid #dbeafe;">
-                    <span style="font-size: 0.75rem; font-weight: 600; color: #1e40af;">折合正文总面数:</span>
-                    <span style="font-family: monospace; font-size: 1.125rem; font-weight: 800; color: #1d4ed8;"><span id="calcTotalPages">0</span> <span style="font-size: 0.75rem; font-weight: 400; opacity: 0.7;">面</span></span>
+                <!-- 正文总面数：现在是可编辑的输入框 -->
+                <div class="input-group">
+                    <label class="input-label">正文总面数 (自动/手动)</label>
+                    <div class="input-wrapper">
+                        <div class="input-icon">
+                            <!-- Icon: description (Page) -->
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+                        </div>
+                        <input type="number" id="totalPhysicalPages" placeholder="0" oninput="updateFromPages()">
+                        <span class="input-unit">面</span>
+                    </div>
                 </div>
             </div>
 
@@ -516,6 +524,40 @@
             calculate();
         }
 
+        // Helper: Get Format
+        function getFormat() {
+            let formatVal = document.getElementById('bookFormat').value;
+            if (formatVal === 'custom') {
+                return parseFloat(document.getElementById('customFormatInput').value) || 16;
+            }
+            return parseFloat(formatVal) || 16;
+        }
+
+        // Logic 1: Update Pages from Sheets (Triggered by Format or Sheets change)
+        function updateFromSheets() {
+            const format = getFormat();
+            const sheets = parseFloat(document.getElementById('printSheets').value) || 0;
+            const totalPages = Math.round(sheets * format);
+            
+            // Update the Total Pages input
+            document.getElementById('totalPhysicalPages').value = totalPages;
+            
+            calculate();
+        }
+
+        // Logic 2: Update Sheets from Pages (Triggered by Pages input)
+        function updateFromPages() {
+            const format = getFormat();
+            const pages = parseFloat(document.getElementById('totalPhysicalPages').value) || 0;
+            const sheets = pages / format;
+            
+            // Update the Sheets input (rounding to 3 decimals to avoid super long floats)
+            // But standard printing usually goes to 0.125 increments etc. Let's just fixed to 3 for display
+            document.getElementById('printSheets').value = parseFloat(sheets.toFixed(3));
+            
+            calculate();
+        }
+
         function calculate() {
             // --- 1. 计算单面基数 ---
             const charsLine = parseFloat(document.getElementById('charsPerLine').value) || 0;
@@ -526,18 +568,8 @@
 
             const baseCharsPerPage = charsLine * linesPage;
 
-            // --- 2. 计算物理总页数 ---
-            let formatVal = document.getElementById('bookFormat').value;
-            let format = 16;
-            
-            if (formatVal === 'custom') {
-                format = parseFloat(document.getElementById('customFormatInput').value) || 0;
-            } else {
-                format = parseFloat(formatVal) || 16;
-            }
-
-            const sheets = parseFloat(document.getElementById('printSheets').value) || 0;
-            const totalPhysicalPages = Math.round(sheets * format);
+            // --- 2. 获取总面数 (Use the input value directly) ---
+            const totalPhysicalPages = parseFloat(document.getElementById('totalPhysicalPages').value) || 0;
 
             // --- 3. 获取特殊页面 ---
             const pBlank = parseFloat(document.getElementById('pagesBlank').value) || 0;
@@ -651,7 +683,6 @@
             const totalThousand = (totalWords / 1000).toFixed(2);
             document.getElementById('totalCount').innerText = formatNumber(totalThousand);
             document.getElementById('calcDetails').innerHTML = detailHTML;
-            document.getElementById('calcTotalPages').innerText = totalPhysicalPages;
         }
 
         // 初始化所有卡片状态
@@ -666,13 +697,15 @@
             // 重置后重新计算状态（以点亮有默认值的卡片）
             setTimeout(() => {
                 initCardStates();
-                calculate();
+                // 默认初始化: Calculate pages from default sheets (10) * format (16)
+                updateFromSheets(); 
             }, 0); 
         }
 
         // 初始化
         initCardStates();
-        calculate();
+        // Initial calculation based on default HTML values
+        updateFromSheets();
     </script>
 </body>
 </html>
