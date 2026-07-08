@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>图书版面字数计算 (独立版)</title>
-    <link rel="icon" href="./images/icon.svg" type="image/svg+xml">
+    
     <!-- 引入 Google Fonts: Noto Sans SC -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -163,6 +163,22 @@
         .footer ul { padding-left: 1rem; }
         .footer li { margin-bottom: 0.25rem; }
 
+        /* --- 历史记录专属样式 --- */
+        .history-container { border-top: 1px solid var(--border-color); padding: 1.5rem; background: white; }
+        .history-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+        .history-header h3 { font-size: 1rem; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 0.5rem; }
+        .export-btn { background: #10b981; color: white; border: none; padding: 0.4rem 0.75rem; border-radius: 0.5rem; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+        .export-btn:hover { background: #059669; }
+        .history-list { display: flex; flex-direction: column; gap: 0.5rem; max-height: 250px; overflow-y: auto; }
+        .history-item { background: #f8fafc; border: 1px solid var(--border-color); border-radius: 0.5rem; padding: 0.75rem; display: flex; justify-content: space-between; align-items: center; }
+        .history-info { display: flex; flex-direction: column; gap: 0.25rem; }
+        .history-title { font-weight: 700; color: var(--text-main); font-size: 0.875rem; }
+        .history-meta { font-size: 0.75rem; color: var(--text-sub); }
+        .history-actions button { background: none; border: none; color: #ef4444; cursor: pointer; font-size: 0.75rem; font-weight: 500; padding: 0.25rem; }
+        .history-actions button:hover { text-decoration: underline; }
+        .save-btn { background: var(--primary); color: white; border: none; padding: 0.75rem; border-radius: 0.5rem; font-weight: 700; cursor: pointer; margin-top: 1rem; width: 100%; transition: background 0.2s; font-size: 0.875rem;}
+        .save-btn:hover { background: #1d4ed8; }
+
         /* SVG Icon styling */
         svg { display: block; }
     </style>
@@ -178,15 +194,28 @@
                 <svg viewBox="0 0 24 24" fill="currentColor" width="32" height="32"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zm-7-2h2v-2h-2v2zm-4 0h2v-2H8v2zm0-4h2v-2H8v2zm4 0h2v-2h-2v2zm4 0h2v-2h-2v2zm0 4h2v-2h-2v2z"/></svg>
                 <span>图书版面字数计算器</span>
             </h1>
-            <div class="badge">印张智能版 v3.18 (双向计算)</div>
+            <div class="badge">印张智能版 v3.18 (双向计算+记录)</div>
         </header>
 
         <form id="calcForm" oninput="calculate()" class="grid-layout">
             
             <!-- 第一列：版式与印张 -->
             <div class="col-left">
-                <!-- 1. 版式参数 -->
+                <!-- 新增：书名记录 -->
                 <div class="section-title">
+                    <svg viewBox="0 0 24 24"><path d="M14 17H4v2h10v-2zm6-8H4v2h16V9zM4 15h16v-2H4v2zM4 5v2h16V5H4z"/></svg>
+                    <span>基本信息</span>
+                </div>
+                
+                <div class="input-group">
+                    <label class="input-label">书名 / 项目名称 (选填)</label>
+                    <div class="input-wrapper">
+                        <input type="text" id="bookTitle" placeholder="例如：《百年孤独》" style="padding: 0.75rem 1rem;">
+                    </div>
+                </div>
+
+                <!-- 1. 版式参数 -->
+                <div class="section-title" style="margin-top: 1.5rem;">
                     <svg viewBox="0 0 24 24"><path d="M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z"/></svg>
                     <span>第一步：版式参数</span>
                 </div>
@@ -280,7 +309,7 @@
                     </div>
                 </div>
 
-                <!-- 正文总面数：现在是可编辑的输入框 -->
+                <!-- 正文总面数 -->
                 <div class="input-group">
                     <label class="input-label">正文总面数 (自动/手动)</label>
                     <div class="input-wrapper">
@@ -306,12 +335,10 @@
                 <div class="grid-cards">
                     <!-- 封面 -->
                     <div class="card-input" onclick="toggleCard(this, 'addonCover', 2)">
-                        <!-- Icon: menu_book -->
                         <svg class="card-icon" viewBox="0 0 24 24"><path d="M21 5c-1.11-.35-2.33-.5-3.5-.5-1.95 0-4.05.4-5.5 1.5-1.45-1.1-3.55-1.5-5.5-1.5S2.45 4.9 1 6v14.65c0 .25.25.5.5.5.1 0 .15-.05.25-.05C3.1 20.45 5.05 20 6.5 20c1.95 0 4.05.4 5.5 1.5 1.35-.85 3.8-1.5 5.5-1.5 1.65 0 3.35.3 4.75 1.05.1.05.15.05.25.05.25 0 .5-.25.5-.5V6c-.6-.45-1.25-.75-2-1zm0 13.5c-1.1-.35-2.3-.5-3.5-.5-1.7 0-4.15.65-5.5 1.5V8c1.35-.85 3.8-1.5 5.5-1.5 1.2 0 2.4.15 3.5.5v11.5z"/></svg>
                         <div class="card-label">封面</div>
                         <div class="card-badge">50%</div>
                         <div class="card-input-wrapper">
-                            <!-- 默认值改为 2 -->
                             <input type="number" id="addonCover" class="card-input-field" value="2" placeholder="0" oninput="updateCardState(this)" onclick="event.stopPropagation()">
                             <span class="card-unit">面</span>
                         </div>
@@ -320,12 +347,10 @@
 
                     <!-- 书脊 -->
                     <div class="card-input" onclick="toggleCard(this, 'addonSpine', 1)">
-                        <!-- Icon: vertical_split -->
                         <svg class="card-icon" viewBox="0 0 24 24"><path d="M3 15h8v-2H3v2zm0 4h8v-2H3v2zm0-8h8V9H3v2zm0-6v2h8V5H3zm10 0h8v14h-8V5z"/></svg>
                         <div class="card-label">书脊</div>
                         <div class="card-badge" style="background:#eef2ff; color:#4f46e5;">100%</div>
                         <div class="card-input-wrapper">
-                            <!-- 默认值改为 1 -->
                             <input type="number" id="addonSpine" class="card-input-field" value="1" placeholder="0" oninput="updateCardState(this)" onclick="event.stopPropagation()">
                             <span class="card-unit">面</span>
                         </div>
@@ -334,12 +359,10 @@
 
                     <!-- 勒口 -->
                     <div class="card-input" onclick="toggleCard(this, 'addonFlaps', 2)">
-                        <!-- Icon: view_sidebar -->
                         <svg class="card-icon" viewBox="0 0 24 24"><path d="M16 20H2V4h14v16zm2-12h4V4h-4v4zm0 12h4v-4h-4v4zm0-6h4v-4h-4v4z"/></svg>
                         <div class="card-label">勒口</div>
                         <div class="card-badge" style="background:#eef2ff; color:#4f46e5;">100%</div>
                         <div class="card-input-wrapper">
-                            <!-- 默认值改为 2 -->
                             <input type="number" id="addonFlaps" class="card-input-field" value="2" placeholder="0" oninput="updateCardState(this)" onclick="event.stopPropagation()">
                             <span class="card-unit">面</span>
                         </div>
@@ -348,7 +371,6 @@
 
                     <!-- 护封 -->
                     <div class="card-input" onclick="toggleCard(this, 'addonDustJacket', 2)">
-                        <!-- Icon: layers -->
                         <svg class="card-icon" viewBox="0 0 24 24"><path d="M11.99 18.54l-7.37-5.73L3 14.07l9 7 9-7-1.63-1.27-7.38 5.74zM12 16l7.36-5.73L21 9l-9-7-9 7 1.63 1.27L12 16z"/></svg>
                         <div class="card-label">护封</div>
                         <div class="card-badge">50%</div>
@@ -360,7 +382,6 @@
 
                     <!-- 封套 -->
                     <div class="card-input" onclick="toggleCard(this, 'addonSlipcase', 2)">
-                        <!-- Icon: folder -->
                         <svg class="card-icon" viewBox="0 0 24 24"><path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z"/></svg>
                         <div class="card-label">封套</div>
                         <div class="card-badge">50%</div>
@@ -372,7 +393,6 @@
 
                     <!-- 腰封 -->
                     <div class="card-input" onclick="toggleCard(this, 'addonObi', 2)">
-                        <!-- Icon: label -->
                         <svg class="card-icon" viewBox="0 0 24 24"><path d="M17.63 5.84C17.27 5.33 16.67 5 16 5L5 5.01C3.9 5.01 3 5.9 3 7v10c0 1.1.9 1.99 2 1.99L16 19c.67 0 1.27-.33 1.63-.84L22 12l-4.37-6.16z"/></svg>
                         <div class="card-label">腰封</div>
                         <div class="card-badge">50%</div>
@@ -436,6 +456,12 @@
                         <!-- JS 生成详情 -->
                     </div>
 
+                    <!-- 新增：保存记录按钮 -->
+                    <button type="button" onclick="saveHistory()" class="save-btn">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg>
+                        保存本次计算记录
+                    </button>
+
                     <button type="button" onclick="resetForm()" class="reset-btn">
                         <!-- Icon: restart_alt -->
                         <svg viewBox="0 0 24 24"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>
@@ -446,8 +472,22 @@
 
         </form>
 
+        <!-- 新增：历史记录展示区 -->
+        <div class="history-container">
+            <div class="history-header">
+                <h3>
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
+                    计算历史记录
+                </h3>
+                <button type="button" class="export-btn" onclick="exportHistory()">导出 CSV (Excel)</button>
+            </div>
+            <div class="history-list" id="historyList">
+                <!-- JS 动态渲染记录 -->
+            </div>
+        </div>
+
         <footer class="footer">
-            <h4> 计算规则说明 (<a href="https://std.samr.gov.cn/hb/search/stdHBDetailed?id=01870D16971D1E54E06397BE0A0AD51C">CY/T 266—2023</a>)：</h4>
+            <h4>计算规则说明 (CY/T 266—2023)：</h4>
             <ul>
                 <li>总页数 = 印张 × 开本。此页数作为标准正文页基数。</li>
                 <li>扉页、空白页、插图页等从正文页基数中扣除（或直接抵扣），并按对应比例重新计算。</li>
@@ -459,7 +499,7 @@
 
     </main>
 
-    <!-- 逻辑脚本 (保留) -->
+    <!-- 逻辑脚本 -->
     <script>
         function formatNumber(num) {
             return Math.round(num).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
@@ -551,8 +591,6 @@
             const pages = parseFloat(document.getElementById('totalPhysicalPages').value) || 0;
             const sheets = pages / format;
             
-            // Update the Sheets input (rounding to 3 decimals to avoid super long floats)
-            // But standard printing usually goes to 0.125 increments etc. Let's just fixed to 3 for display
             document.getElementById('printSheets').value = parseFloat(sheets.toFixed(3));
             
             calculate();
@@ -568,7 +606,7 @@
 
             const baseCharsPerPage = charsLine * linesPage;
 
-            // --- 2. 获取总面数 (Use the input value directly) ---
+            // --- 2. 获取总面数 ---
             const totalPhysicalPages = parseFloat(document.getElementById('totalPhysicalPages').value) || 0;
 
             // --- 3. 获取特殊页面 ---
@@ -626,9 +664,8 @@
                  addRow('空白页', `${pBlank}面`, 0);
             }
 
-            // --- 装帧附件计算 (新增) ---
+            // --- 装帧附件计算 ---
             
-            // 50% 权重组
             const addonCover = parseFloat(document.getElementById('addonCover').value) || 0;
             if (addonCover > 0) {
                 const c = addonCover * baseCharsPerPage * 0.5;
@@ -657,7 +694,6 @@
                 addRow('腰封', `${addonObi}面 × 50%`, c);
             }
 
-            // 100% 权重组
             const addonSpine = parseFloat(document.getElementById('addonSpine').value) || 0;
             if (addonSpine > 0) {
                 const c = addonSpine * baseCharsPerPage * 1.0;
@@ -685,29 +721,117 @@
             document.getElementById('calcDetails').innerHTML = detailHTML;
         }
 
-        // 初始化所有卡片状态
         function initCardStates() {
             const inputs = document.querySelectorAll('.card-input-field');
             inputs.forEach(input => updateCardState(input));
         }
 
         function resetForm() {
-            document.getElementById('calcForm').reset(); // 这会恢复到 HTML 中的 value 默认值
+            document.getElementById('calcForm').reset();
             document.getElementById('customFormatWrapper').classList.add('hidden');
-            // 重置后重新计算状态（以点亮有默认值的卡片）
             setTimeout(() => {
                 initCardStates();
-                // 默认初始化: Calculate pages from default sheets (10) * format (16)
                 updateFromSheets(); 
             }, 0); 
         }
 
+        // --- 历史记录核心逻辑 ---
+        
+        function saveHistory() {
+            const title = document.getElementById('bookTitle').value.trim() || '未命名项目';
+            const totalWords = document.getElementById('totalCount').innerText;
+            const sheets = document.getElementById('printSheets').value;
+            const format = getFormat();
+            const pages = document.getElementById('totalPhysicalPages').value;
+            
+            const record = {
+                id: Date.now(),
+                date: new Date().toLocaleString('zh-CN', { hour12: false }),
+                title: title,
+                words: totalWords,
+                sheets: sheets,
+                format: format,
+                pages: pages
+            };
+
+            let history = JSON.parse(localStorage.getItem('calcHistory')) || [];
+            // 将新记录插入到最前面
+            history.unshift(record); 
+            localStorage.setItem('calcHistory', JSON.stringify(history));
+            
+            renderHistory();
+            
+            // 简单视觉反馈
+            const btn = document.querySelector('.save-btn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '已保存！';
+            btn.style.background = '#10b981'; // 变成绿色
+            setTimeout(() => {
+                btn.innerHTML = originalText;
+                btn.style.background = '';
+            }, 1500);
+        }
+
+        function renderHistory() {
+            const history = JSON.parse(localStorage.getItem('calcHistory')) || [];
+            const list = document.getElementById('historyList');
+            
+            if (history.length === 0) {
+                list.innerHTML = '<div style="text-align:center; padding: 1rem; color: #94a3b8; font-size: 0.875rem;">暂无保存的记录</div>';
+                return;
+            }
+
+            list.innerHTML = history.map((item, index) => `
+                <div class="history-item">
+                    <div class="history-info">
+                        <div class="history-title">《${item.title}》- ${item.words} 千字</div>
+                        <div class="history-meta">${item.date} | ${item.sheets}印张 | ${item.format}开 | ${item.pages}面</div>
+                    </div>
+                    <div class="history-actions">
+                        <button type="button" onclick="deleteHistory(${index})">删除</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function deleteHistory(index) {
+            if(!confirm('确定要删除这条记录吗？')) return;
+            let history = JSON.parse(localStorage.getItem('calcHistory')) || [];
+            history.splice(index, 1);
+            localStorage.setItem('calcHistory', JSON.stringify(history));
+            renderHistory();
+        }
+
+        function exportHistory() {
+            const history = JSON.parse(localStorage.getItem('calcHistory')) || [];
+            if (history.length === 0) {
+                alert('没有可导出的数据');
+                return;
+            }
+
+            // 添加 BOM 头，防止 Excel 打开 CSV 中文乱码
+            let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; 
+            csvContent += "书名/项目名称,版面总字数(千字),正文印张,开本,正文总面数,保存时间\n";
+            
+            history.forEach(row => {
+                // 替换掉书名里可能存在的英文逗号，防止 CSV 串列
+                const safeTitle = row.title.replace(/,/g, "，"); 
+                csvContent += `${safeTitle},${row.words},${row.sheets},${row.format},${row.pages},${row.date}\n`;
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "图书字数计算历史记录.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
         // 初始化
         initCardStates();
-        // Initial calculation based on default HTML values
         updateFromSheets();
+        renderHistory(); // 渲染历史记录
     </script>
 </body>
 </html>
-
-
