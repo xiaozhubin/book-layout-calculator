@@ -174,8 +174,14 @@
         .history-info { display: flex; flex-direction: column; gap: 0.25rem; }
         .history-title { font-weight: 700; color: var(--text-main); font-size: 0.875rem; }
         .history-meta { font-size: 0.75rem; color: var(--text-sub); }
-        .history-actions button { background: none; border: none; color: #ef4444; cursor: pointer; font-size: 0.75rem; font-weight: 500; padding: 0.25rem; }
+        
+        /* 修改操作按钮样式 */
+        .history-actions { display: flex; gap: 0.75rem; align-items: center; }
+        .history-actions button { background: none; border: none; cursor: pointer; font-size: 0.75rem; font-weight: 600; padding: 0.25rem; transition: color 0.2s; }
+        .history-actions .delete-btn { color: #ef4444; }
+        .history-actions .restore-btn { color: var(--primary); }
         .history-actions button:hover { text-decoration: underline; }
+        
         .save-btn { background: var(--primary); color: white; border: none; padding: 0.75rem; border-radius: 0.5rem; font-weight: 700; cursor: pointer; margin-top: 1rem; width: 100%; transition: background 0.2s; font-size: 0.875rem; display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
         .save-btn:hover { background: #1d4ed8; }
 
@@ -194,14 +200,14 @@
                 <svg viewBox="0 0 24 24" fill="currentColor" width="32" height="32"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zm-7-2h2v-2h-2v2zm-4 0h2v-2H8v2zm0-4h2v-2H8v2zm4 0h2v-2h-2v2zm4 0h2v-2h-2v2zm0 4h2v-2h-2v2z"/></svg>
                 <span>图书版面字数计算器</span>
             </h1>
-            <div class="badge">印张智能版 v3.18 (双向计算+记录)</div>
+            <div class="badge">印张智能版 v3.20 (记录完整还原)</div>
         </header>
 
         <form id="calcForm" oninput="calculate()" class="grid-layout">
             
             <!-- 第一列：版式与印张 -->
             <div class="col-left">
-                <!-- 新增：书名记录 -->
+                <!-- 书名记录 -->
                 <div class="section-title">
                     <svg viewBox="0 0 24 24"><path d="M14 17H4v2h10v-2zm6-8H4v2h16V9zM4 15h16v-2H4v2zM4 5v2h16V5H4z"/></svg>
                     <span>基本信息</span>
@@ -456,7 +462,7 @@
                         <!-- JS 生成详情 -->
                     </div>
 
-                    <!-- 新增：保存记录按钮 -->
+                    <!-- 保存记录按钮 -->
                     <button type="button" onclick="saveHistory()" class="save-btn">
                         <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg>
                         保存本次记录
@@ -472,7 +478,7 @@
 
         </form>
 
-        <!-- 新增：历史记录展示区 -->
+        <!-- 历史记录展示区 -->
         <div class="history-container">
             <div class="history-header">
                 <h3>
@@ -744,6 +750,34 @@
             const format = getFormat();
             const pages = document.getElementById('totalPhysicalPages').value;
             
+            // 获取字数和行数
+            const charsLine = document.getElementById('charsPerLine').value;
+            const linesPage = document.getElementById('linesPerPage').value;
+
+            // 完整记录所有表单状态，用于后续完美还原
+            const formState = {
+                bookTitle: document.getElementById('bookTitle').value,
+                charsPerLine: charsLine,
+                linesPerPage: linesPage,
+                hasHeader: document.getElementById('hasHeader').checked,
+                hasPageNum: document.getElementById('hasPageNum').checked,
+                bookFormat: document.getElementById('bookFormat').value,
+                customFormatInput: document.getElementById('customFormatInput').value,
+                printSheets: sheets,
+                totalPhysicalPages: pages,
+                addonCover: document.getElementById('addonCover').value,
+                addonSpine: document.getElementById('addonSpine').value,
+                addonFlaps: document.getElementById('addonFlaps').value,
+                addonDustJacket: document.getElementById('addonDustJacket').value,
+                addonSlipcase: document.getElementById('addonSlipcase').value,
+                addonObi: document.getElementById('addonObi').value,
+                pagesBlank: document.getElementById('pagesBlank').value,
+                pagesImage: document.getElementById('pagesImage').value,
+                pagesHalf: document.getElementById('pagesHalf').value,
+                pagesForeign: document.getElementById('pagesForeign').value,
+                pagesFootnote: document.getElementById('pagesFootnote').value
+            };
+
             const record = {
                 id: Date.now(),
                 date: new Date().toLocaleString('zh-CN', { hour12: false }),
@@ -751,7 +785,10 @@
                 words: totalWords,
                 sheets: sheets,
                 format: format,
-                pages: pages
+                pages: pages,
+                charsLine: charsLine, // 单独存放在外层，方便列表渲染和导出
+                linesPage: linesPage,
+                state: formState      // 完整状态对象
             };
 
             let history = JSON.parse(localStorage.getItem('calcHistory')) || [];
@@ -781,17 +818,82 @@
                 return;
             }
 
-            list.innerHTML = history.map((item, index) => `
+            list.innerHTML = history.map((item, index) => {
+                // 兼容旧记录（旧记录没有存这两项）
+                const cL = item.charsLine || '-';
+                const lP = item.linesPage || '-';
+
+                return `
                 <div class="history-item">
                     <div class="history-info">
                         <div class="history-title">《${item.title}》- ${item.words} 千字</div>
-                        <div class="history-meta">${item.date} | ${item.sheets}印张 | ${item.format}开 | ${item.pages}面</div>
+                        <div class="history-meta">${item.date} | ${cL}字/行 | ${lP}行/面 | ${item.sheets}印张 | ${item.format}开</div>
                     </div>
                     <div class="history-actions">
-                        <button type="button" onclick="deleteHistory(${index})">删除</button>
+                        <button type="button" class="restore-btn" onclick="restoreHistory(${index})">还原</button>
+                        <button type="button" class="delete-btn" onclick="deleteHistory(${index})">删除</button>
                     </div>
                 </div>
-            `).join('');
+                `;
+            }).join('');
+        }
+
+        // 新增：完整还原历史记录的功能
+        function restoreHistory(index) {
+            let history = JSON.parse(localStorage.getItem('calcHistory')) || [];
+            const item = history[index];
+            if (!item) return;
+
+            if (item.state) {
+                // 如果是新版本保存的记录，包含完整的 state 对象
+                const state = item.state;
+                document.getElementById('bookTitle').value = state.bookTitle || '';
+                document.getElementById('charsPerLine').value = state.charsPerLine;
+                document.getElementById('linesPerPage').value = state.linesPerPage;
+                document.getElementById('hasHeader').checked = state.hasHeader;
+                document.getElementById('hasPageNum').checked = state.hasPageNum;
+                document.getElementById('bookFormat').value = state.bookFormat;
+                document.getElementById('customFormatInput').value = state.customFormatInput;
+                document.getElementById('printSheets').value = state.printSheets;
+                document.getElementById('totalPhysicalPages').value = state.totalPhysicalPages;
+                
+                document.getElementById('addonCover').value = state.addonCover;
+                document.getElementById('addonSpine').value = state.addonSpine;
+                document.getElementById('addonFlaps').value = state.addonFlaps;
+                document.getElementById('addonDustJacket').value = state.addonDustJacket;
+                document.getElementById('addonSlipcase').value = state.addonSlipcase;
+                document.getElementById('addonObi').value = state.addonObi;
+                
+                document.getElementById('pagesBlank').value = state.pagesBlank;
+                document.getElementById('pagesImage').value = state.pagesImage;
+                document.getElementById('pagesHalf').value = state.pagesHalf;
+                document.getElementById('pagesForeign').value = state.pagesForeign;
+                document.getElementById('pagesFootnote').value = state.pagesFootnote;
+            } else {
+                // 兼容老版本的历史记录还原（部分数据可能丢失）
+                document.getElementById('bookTitle').value = item.title === '未命名项目' ? '' : item.title;
+                document.getElementById('printSheets').value = item.sheets;
+                document.getElementById('totalPhysicalPages').value = item.pages;
+                if (item.charsLine) document.getElementById('charsPerLine').value = item.charsLine;
+                if (item.linesPage) document.getElementById('linesPerPage').value = item.linesPage;
+                
+                const formatSelect = document.getElementById('bookFormat');
+                const formatOptions = Array.from(formatSelect.options).map(opt => opt.value);
+                if (formatOptions.includes(item.format.toString())) {
+                    formatSelect.value = item.format;
+                } else {
+                    formatSelect.value = 'custom';
+                    document.getElementById('customFormatInput').value = item.format;
+                }
+            }
+
+            // 触发 UI 刷新并重算
+            toggleCustomFormat();
+            initCardStates();
+            calculate();
+            
+            // 滚动到顶部，方便用户查看
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
         function deleteHistory(index) {
@@ -811,12 +913,14 @@
 
             // 添加 BOM 头，防止 Excel 打开 CSV 中文乱码
             let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; 
-            csvContent += "书名/项目名称,版面总字数(千字),正文印张,开本,正文总面数,保存时间\n";
+            csvContent += "书名/项目名称,版面总字数(千字),每行字数,每面行数,正文印张,开本,正文总面数,保存时间\n";
             
             history.forEach(row => {
                 // 替换掉书名里可能存在的英文逗号，防止 CSV 串列
                 const safeTitle = row.title.replace(/,/g, "，"); 
-                csvContent += `${safeTitle},${row.words},${row.sheets},${row.format},${row.pages},${row.date}\n`;
+                const cL = row.charsLine || '-';
+                const lP = row.linesPage || '-';
+                csvContent += `${safeTitle},${row.words},${cL},${lP},${row.sheets},${row.format},${row.pages},${row.date}\n`;
             });
 
             const encodedUri = encodeURI(csvContent);
